@@ -18,14 +18,14 @@ class Fitness:
         sum_pairs = 0
         sum_words = 0
         for l in text:
-            sum_letter += self.calc_freq(l, self.letter_to_freq)
+            sum_letter += self.calc_freq(l.upper(), self.letter_to_freq)
 
         for i in range(len(text) - 2):
-            sum_pairs += self.calc_freq(text[i, i + 1], self.pair_to_freq)
+            sum_pairs += self.calc_freq(text[i: i + 2].upper(), self.pair_to_freq)
 
         words = re.split(" |, |\t|\n", text)
         for word in words:
-            if word in self.word_freq:
+            if word.lower() in self.word_freq:
                 sum_words += 1
 
         return (
@@ -33,3 +33,7 @@ class Fitness:
             + lamda_arr[1] * sum_pairs
             + lamda_arr[0] * sum_words
         )
+
+if __name__=='__main__':
+    fitness = Fitness('dict.txt','Letter2_Freq.txt','Letter_Freq.txt')
+    print(fitness.fitness("Active asfgsdfgasfg aaa"))
