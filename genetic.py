@@ -26,6 +26,11 @@ class Permutation:
         self._permutation = permutation_dict
 
     def is_valid_permutation_dict(self, permutation_dict: Dict[str, str] = None) -> bool:
+        """
+        :param permutation_dict: dictionary
+        :return: returns whether the permutation dictionary is valid (meaning that it correlates
+         with the english-dictionary)
+        """
         language_letters = self._english_dictionary.letter_to_freq.keys()
         permutation_keys = permutation_dict.keys()
         permutation_values = permutation_dict.values()
@@ -121,11 +126,24 @@ class Permutation:
             permutation_dict[not_allocated_source_letter] = not_allocated_target_letters[idx]
             not_allocated_target_letters.pop(idx)
 
-        # return
         return Permutation(
             permutation_dict=permutation_dict,
             english_dictionary=first_parent._english_dictionary
         )
+
+    def mutation(self, probability: float):
+        if probability < 0 or probability > 1:
+            print(f"invalid probability to mutate:{probability}")
+            return
+
+        n_mutations = int(self._n_letters * probability)
+        for index_mutation in range(n_mutations):
+            letter_1, letter_2 = random.sample(self._letters, k=2)
+            target_letter_1 = self._permutation[letter_1]
+            target_letter_2 = self._permutation[letter_2]
+
+            self._permutation[letter_1] = target_letter_2
+            self._permutation[letter_2] = target_letter_1
 
     def fitness(self, txt: str) -> float:
         """
@@ -208,7 +226,7 @@ if __name__ == "__main__":
     perm3 = Permutation.crossover(perm1, perm2)
 
     print(f"perm3 fitness:{perm3.fitness(txt)}")
-
+    
     # for permutation in solver._permutations:
     #     print(permutation)
         # print(permutation.fitness(txt))
