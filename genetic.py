@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+import functools
+import statistics
 from typing import Dict, List, Tuple, Optional
 import random
 import re
@@ -264,7 +267,7 @@ class Solver:
     ) -> List[Tuple[Permutation, float]]:
         next_gen: List[Tuple[Permutation, float]] = []
 
-        keep_old_percentage, mutations_percentage, crossover_percentage = (0.4, 0.05, 0.4)
+        keep_old_percentage, mutations_percentage, crossover_percentage = (0.35, 0.05, 0.5)
 
         n_keep_old = int(self._population_size * keep_old_percentage)
         n_mutations = int(self._population_size * mutations_percentage)
@@ -277,10 +280,19 @@ class Solver:
         # keep elitism
         next_gen.extend(generation_fitness_tuples_list[:n_keep_old])
 
+        # calculate chances to better select crossover couples
+        all_fitness = [fit for _, fit in generation_fitness_tuples_list]
+        sum_fitness = sum(all_fitness)
+        chances = [fit / sum_fitness for fit in all_fitness]
+
         # crossovers
         crossovers: List[Permutation] = []
         for i in range(n_crossovers):
-            (permutation_1, fitness_1), (permutation_2, fitness_2) = random.choices(generation_fitness_tuples_list, k=2)
+            (permutation_1, fitness_1), (permutation_2, fitness_2) = random.choices(
+                generation_fitness_tuples_list,
+                k=2,
+                weights=chances
+            )
             crossovers.append(Permutation.crossover(permutation_1, permutation_2))
         next_gen.extend(self.evaluate_generation(crossovers))
 
@@ -288,13 +300,8 @@ class Solver:
         mutations: List[Permutation] = []
         for i in range(n_mutations):
             permutation, fitness = random.choice(generation_fitness_tuples_list)
-            # print(f"mutation:{permutation}")
-            # print(f"fitness:{fitness}")
-            # print(f"old fitness:{permutation.fitness(self._text)}")
             mutations.append(Permutation.mutation(permutation, 0.05))
-            # print(f"new fitness:{mutated_permutation.fitness(self._text)}")
         next_gen.extend(self.evaluate_generation(mutations))
-        # next_gen.extend([(mutated_permutation, mutated_permutation.fitness(self._text))])
 
         return sorted(next_gen, reverse=True, key=lambda x: x[1])
 
