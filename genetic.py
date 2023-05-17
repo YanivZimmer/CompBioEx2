@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, List
+from typing import Dict, List, Tuple, Optional
 import random
 import re
 
@@ -18,6 +18,7 @@ class Permutation:
     ):
         self._english_dictionary = english_dictionary
         self._letters = list(self._english_dictionary.letter_to_freq.keys())
+        self._set_letters = set(self._letters)
         self._n_letters = len(self._letters)
         self._not_in_permutation = exempt_from_permutation or Permutation.EXEMPT_FROM_PERMUTATION
         permutation_dict = permutation_dict or self._generate_solution()
@@ -61,7 +62,7 @@ class Permutation:
         """
         regex = '|'.join(self._not_in_permutation)
         split_txt = re.split(regex, txt)
-        return [txt.upper() for txt in split_txt if len(txt) != 0]
+        return [txt.lower() for txt in split_txt if len(txt) != 0]
 
     @staticmethod
     def _number_of_tokens(tokens: List[str]) -> int:
@@ -77,12 +78,12 @@ class Permutation:
         :return: returns the translated text from the token using the permutation
         """
         total_str = ""
-        for letter in token:
+        for letter in token.lower():
             if letter in self._permutation:
-                total_str += self._permutation[letter]
+                value = self._permutation[letter]
             else:
-                print(f"not in permutation :{letter}")
-                total_str += letter
+                value = letter
+            total_str += value
         return total_str
 
     @staticmethod
@@ -97,6 +98,7 @@ class Permutation:
         permutation_dict: Dict[str, str] = {}
 
         # take from first
+
         letters_from_first_parent = set(first_parent._letters[:index])
         allocated_target_letters = set()
         for letter in letters_from_first_parent:
@@ -104,7 +106,7 @@ class Permutation:
             allocated_target_letters.add(first_parent._permutation[letter])
 
         # take from second
-        letters_from_second_parent = set(first_parent._letters) - letters_from_first_parent
+        letters_from_second_parent = first_parent._set_letters - letters_from_first_parent
 
         not_allocated_source_letters = set()
         for letter in letters_from_second_parent:
@@ -116,7 +118,7 @@ class Permutation:
                 permutation_dict[letter] = target_letter
                 allocated_target_letters.add(target_letter)
 
-        not_allocated_target_letters = list(set(first_parent._letters) - allocated_target_letters)
+        not_allocated_target_letters = list(first_parent._set_letters - allocated_target_letters)
 
         # fix errors
         assert len(not_allocated_source_letters) == len(not_allocated_target_letters), "not the same length"
@@ -131,19 +133,23 @@ class Permutation:
             english_dictionary=first_parent._english_dictionary
         )
 
-    def mutation(self, probability: float):
+    @staticmethod
+    def mutation(permutation: Permutation, probability: float):
         if probability < 0 or probability > 1:
             print(f"invalid probability to mutate:{probability}")
             return
 
-        n_mutations = int(self._n_letters * probability)
+        new_permutation = Permutation(english_dictionary=permutation._english_dictionary,
+                                      permutation_dict=permutation._permutation.copy())
+        n_mutations = int(permutation._n_letters * probability)
         for index_mutation in range(n_mutations):
-            letter_1, letter_2 = random.sample(self._letters, k=2)
-            target_letter_1 = self._permutation[letter_1]
-            target_letter_2 = self._permutation[letter_2]
+            letter_1, letter_2 = random.sample(permutation._letters, k=2)
+            target_letter_1 = new_permutation._permutation[letter_1]
+            target_letter_2 = new_permutation._permutation[letter_2]
 
-            self._permutation[letter_1] = target_letter_2
-            self._permutation[letter_2] = target_letter_1
+            new_permutation._permutation[letter_1] = target_letter_2
+            new_permutation._permutation[letter_2] = target_letter_1
+        return new_permutation
 
     def fitness(self, txt: str) -> float:
         """
@@ -162,43 +168,142 @@ class Permutation:
             if translated_token in self._english_dictionary.words:
                 cnt_correct_token += len(translated_token)
             else:
-                # count the pairs of unsolved tokens
+                cnt_letters += self._english_dictionary.letter_to_freq[translated_token[0]]
                 for first_letter, second_letter in zip(translated_token, translated_token[1:]):
+                    # count the pairs of unsolved tokens
                     pair = f"{first_letter}{second_letter}"
                     pair_freq = self._english_dictionary.letter_pairs_to_freq[pair]
                     cnt_total_pairs += pair_freq
-                # count the unsolved token frequency
-                for letter in translated_token:
-                    if letter in self._english_dictionary.letter_to_freq:
-                        cnt_letters += self._english_dictionary.letter_to_freq[letter]
-                    else:
-                        print(f"letter {letter} in token {token} (or translated{translated_token}) is not part of the english letters")
+                    # count the unsolved token frequency
+                    cnt_letters += self._english_dictionary.letter_to_freq[second_letter]
 
-        return cnt_correct_token + cnt_total_pairs + cnt_letters * 0.1
+        return 2 * cnt_correct_token + 15 * cnt_total_pairs + cnt_letters
 
 
 class Solver:
-    def __init__(self, population_size: int, english_dictionary: EnglishDictionary):
+    def __init__(self, population_size: int, text: str, english_dictionary: EnglishDictionary):
         self._population_size = population_size  # number of solution in each generation
+        self._text = text
         self._english_dictionary = english_dictionary
         self._permutations = []
 
-        self._generate_permutation()
+        # generation statistics
+        self._best_score = -100.0
+        self._worst_score = 100.0
+        self._gen_score = 0
+        self._best_sol: Optional[Permutation] = None
 
-    def _generate_permutation(self) -> None:
+        self._generation = self._generate_generation_solutions_fitness(self._population_size)
+        # self._generation = self._generate_generation(self._population_size)
+
+    def _generate_generation(self, size: int) -> List[Permutation]:
         """
         This function is responsible for generating permutations
         """
-        self._permutations = []
-        for i in range(self._population_size):
-            self._permutations.append(Permutation(english_dictionary=self._english_dictionary))
+        generation: List[Permutation] = []
+        for i in range(size):
+            generation.append(Permutation(english_dictionary=self._english_dictionary))
+        return generation
 
-    def solve(self):
-        pass
+    def _generate_generation_solutions_fitness(self, size: int) -> List[Tuple[Permutation, float]]:
+        solutions = self._generate_generation(size)
+        return sorted(
+            [(solution, solution.fitness(self._text)) for solution in solutions],
+            reverse=True,
+            key=lambda x: x[1]
+        )
+
+    def evaluate_generation(self, solutions: List[Permutation]) -> List[Tuple[Permutation, float]]:
+        """
+        :param solutions: list of permutations
+        :return: returns a list that is constructed of the solutions fitness
+        """
+        return sorted(
+            [(solution, solution.fitness(txt=self._text)) for solution in solutions],
+            reverse=True,
+            key=lambda x: x[1]
+        )
+
+    @staticmethod
+    def sort_solutions(solutions: List[Tuple[Permutation, float]]) -> List[Tuple[Permutation, float]]:
+        return sorted(solutions, reverse=True, key=lambda x: x[1])
+
+    def update_solution(self):
+        raise NotImplementedError()
+
+    def execution_stat(self, solutions: List[Tuple[Permutation, float]]):
+        generation_fitness_list = [fitness_score for _, fitness_score in solutions]
+
+        best_permutation_in_this_turn, best_fitness_in_this_turn = solutions[0]
+
+        # list is ordered id a descending fitness order
+        self._gen_score = sum(generation_fitness_list) / self._population_size
+
+        if best_fitness_in_this_turn > self._best_score:
+            self._best_sol = best_permutation_in_this_turn
+            self._best_score = best_fitness_in_this_turn
+            print(f"best score found:{best_fitness_in_this_turn}")
+
+        self._worst_score = generation_fitness_list[-1]
+
+    def solve(self, num_of_generations: int = 10):
+        run = True
+        n_generation = 0
+
+        while run:
+            self.update_solution()
+            print(f"mean gen {n_generation} score:{self._gen_score}, best score:{self._best_score}")
+
+            if n_generation >= num_of_generations:
+                run = False
+            n_generation += 1
+
+    def next_generation(
+            self,
+            generation_fitness_tuples_list: List[Tuple[Permutation, float]]
+    ) -> List[Tuple[Permutation, float]]:
+        next_gen: List[Tuple[Permutation, float]] = []
+
+        keep_old_percentage, mutations_percentage, crossover_percentage = (0.4, 0.05, 0.4)
+
+        n_keep_old = int(self._population_size * keep_old_percentage)
+        n_mutations = int(self._population_size * mutations_percentage)
+        n_crossovers = int(self._population_size * crossover_percentage)
+        n_random = max(self._population_size - (n_keep_old + n_mutations + n_crossovers), 0)
+
+        # add random generations
+        next_gen.extend(self._generate_generation_solutions_fitness(n_random))
+
+        # keep elitism
+        next_gen.extend(generation_fitness_tuples_list[:n_keep_old])
+
+        # crossovers
+        crossovers: List[Permutation] = []
+        for i in range(n_crossovers):
+            (permutation_1, fitness_1), (permutation_2, fitness_2) = random.choices(generation_fitness_tuples_list, k=2)
+            crossovers.append(Permutation.crossover(permutation_1, permutation_2))
+        next_gen.extend(self.evaluate_generation(crossovers))
+
+        # mutations
+        mutations: List[Permutation] = []
+        for i in range(n_mutations):
+            permutation, fitness = random.choice(generation_fitness_tuples_list)
+            # print(f"mutation:{permutation}")
+            # print(f"fitness:{fitness}")
+            # print(f"old fitness:{permutation.fitness(self._text)}")
+            mutations.append(Permutation.mutation(permutation, 0.05))
+            # print(f"new fitness:{mutated_permutation.fitness(self._text)}")
+        next_gen.extend(self.evaluate_generation(mutations))
+        # next_gen.extend([(mutated_permutation, mutated_permutation.fitness(self._text))])
+
+        return sorted(next_gen, reverse=True, key=lambda x: x[1])
 
 
 class NormalSolver(Solver):
-    pass
+    def update_solution(self):
+        self.execution_stat(self._generation)
+        self._generation = self.next_generation(self._generation)
+        # self.best_sol = self._generation[0][0]
 
 
 """
@@ -217,16 +322,11 @@ class DarwinSolver(Solver):
 
 if __name__ == "__main__":
     dictionary = EnglishDictionary('dict.txt', 'Letter2_Freq.txt', 'Letter_Freq.txt')
-
-    solver = Solver(population_size=10, english_dictionary=dictionary)
     txt = """Pm ol ohk hufaopun jvumpkluaphs av zhf, ol dyval pa pu jpwoly, aoha pz, if zv johunpun aol vykly vm aol slaalyz vm aol hswohila, aoha uva h dvyk jvbsk il thkl vba."""
-    perm1 = solver._permutations[0]
-    perm2 = solver._permutations[1]
+    solver = NormalSolver(population_size=1000, text=txt, english_dictionary=dictionary)
 
-    perm3 = Permutation.crossover(perm1, perm2)
-
-    print(f"perm3 fitness:{perm3.fitness(txt)}")
-    
-    # for permutation in solver._permutations:
-    #     print(permutation)
-        # print(permutation.fitness(txt))
+    # for generation_fitness_permutation, generation_fitness_score in generation_fitness_list:
+    #     print(generation_fitness_score)
+    solver.solve(400)
+    # print([fit for _, fit in solver._generation])
+    print(solver._best_sol.translate(txt))

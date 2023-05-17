@@ -18,7 +18,7 @@ class EnglishDictionary:
             reader = csv.reader(file, delimiter="\n")
             for row in reader:
                 try:
-                    value, key = row[0].upper().split("\t")
+                    value, key = row[0].lower().split("\t")
                     data[key] = float(value)
                 except:
                     pass
@@ -31,7 +31,7 @@ class EnglishDictionary:
             reader = csv.reader(file, delimiter="\n")
             for row in reader:
                 try:
-                    data.add(row[0].upper())
+                    data.add(row[0].lower())
                 except:
                     pass
         return data
