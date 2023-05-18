@@ -329,7 +329,6 @@ class DarwinSolver(Solver):
 
 if __name__ == "__main__":
     dictionary = EnglishDictionary('dict.txt', 'Letter2_Freq.txt', 'Letter_Freq.txt')
-    # txt = """Pm ol ohk hufaopun jvumpkluaphs av zhf, ol dyval pa pu jpwoly, aoha pz, if zv johunpun aol vykly vm aol slaalyz vm aol hswohila, aoha uva h dvyk jvbsk il thkl vba."""
     with open(r"enc.txt", "r") as f:
         txt = f.read()
     solver = NormalSolver(population_size=1000, text=txt, english_dictionary=dictionary)
