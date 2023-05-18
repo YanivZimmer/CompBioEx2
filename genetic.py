@@ -310,7 +310,6 @@ class NormalSolver(Solver):
     def update_solution(self):
         self.execution_stat(self._generation)
         self._generation = self.next_generation(self._generation)
-        # self.best_sol = self._generation[0][0]
 
 
 """
