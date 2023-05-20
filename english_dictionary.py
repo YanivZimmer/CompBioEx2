@@ -11,18 +11,18 @@ class EnglishDictionary:
         self.letter_pairs_to_freq = self._read_file_as_dict(pair_dict_path)
         self.letter_to_freq = self._read_file_as_dict(letter_dict_path)
 
-        letter_freq = {}
-        for first_letter, second_letter in self.letter_pairs_to_freq:
-            letter_pairs = f"{first_letter}{second_letter}"
-            if first_letter in letter_freq:
-                letter_freq[first_letter] += self.letter_pairs_to_freq[letter_pairs]
-            else:
-                letter_freq[first_letter] = self.letter_pairs_to_freq[letter_pairs]
+        # letter_freq = {}
+        # for first_letter, second_letter in self.letter_pairs_to_freq:
+        #     letter_pairs = f"{first_letter}{second_letter}"
+        #     if first_letter in letter_freq:
+        #         letter_freq[first_letter] += self.letter_pairs_to_freq[letter_pairs]
+        #     else:
+        #         letter_freq[first_letter] = self.letter_pairs_to_freq[letter_pairs]
 
-        self.bigram_to_freq = {}
-        for first_letter, second_letter in self.letter_pairs_to_freq:
-            bigram_txt = f"{first_letter}{second_letter}"
-            self.bigram_to_freq[bigram_txt] = self.letter_pairs_to_freq[bigram_txt] / letter_freq[first_letter]
+        # self.bigram_to_freq = {}
+        # for first_letter, second_letter in self.letter_pairs_to_freq:
+        #     bigram_txt = f"{first_letter}{second_letter}"
+        #     self.bigram_to_freq[bigram_txt] = self.letter_pairs_to_freq[bigram_txt] / letter_freq[first_letter]
 
     @staticmethod
     def _read_file_as_dict(file_path) -> dict[str, float]:

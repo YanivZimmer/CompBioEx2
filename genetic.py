@@ -196,8 +196,21 @@ class Solver:
         self._gen_score = 0
         self._best_sol: Optional[Permutation] = None
 
+        self._best_score_in_all_executions = -100
+        self._best_sol_in_all_executions: Optional[Permutation] = None
+
+        # population settings
+        self._keep_old_percentage = 0.15  # elite
+        self._mutation_percentage = 0.05
+        self._crossover_percentage = 0.5
+
+        self._n_keep_old = int(self._population_size * self._keep_old_percentage)
+        self._n_mutations = int(self._population_size * self._mutation_percentage)
+        self._n_crossovers = int(self._population_size * self._crossover_percentage)
+
+        self._n_random = max(self._population_size - (self._n_keep_old + self._n_mutations + self._n_crossovers), 0)
+
         self._generation = self._generate_generation_solutions_fitness(self._population_size)
-        # self._generation = self._generate_generation(self._population_size)
 
     def _generate_generation(self, size: int) -> List[Permutation]:
         """
@@ -247,38 +260,71 @@ class Solver:
             self._best_score = best_fitness_in_this_turn
             print(f"best score found:{best_fitness_in_this_turn}")
 
+        if best_fitness_in_this_turn > self._best_score_in_all_executions:
+            self._best_sol_in_all_executions = best_permutation_in_this_turn
+            self._best_score_in_all_executions = best_fitness_in_this_turn
+            print(f"best score in all executions found:{best_fitness_in_this_turn}")
+
         self._worst_score = generation_fitness_list[-1]
 
-    def solve(self, num_of_generations: int = 10):
+    def solve(self, num_of_generations: int = 200, n_stuck: int = 100):
         run = True
         n_generation = 0
+        n_turns_with_best_score = 0
+        last_best_score = self._best_score
 
         while run:
             self.update_solution()
-            print(f"mean gen {n_generation} score:{self._gen_score}, best score:{self._best_score}")
+            print(f"mean gen {n_generation} score:{self._gen_score}, best score:{self._best_score}, best total score:{self._best_score_in_all_executions}")
+
+            #  update number of turns with best score
+            if last_best_score == self._best_score:
+                n_turns_with_best_score += 1
+            if self._best_score > last_best_score:
+                n_turns_with_best_score = 0
+
+            # is in local maximum
+            if n_turns_with_best_score == n_stuck:
+                print(f"start over after {n_generation} generations")
+                self.start_over()
+                n_turns_with_best_score = 0
 
             if n_generation >= num_of_generations:
                 run = False
+
+            last_best_score = self._best_score
             n_generation += 1
+
+    def start_over(self):
+        """
+        This function starts the generation from the beginning again (probably because it stuck)
+        """
+        self._generation = self._generate_generation_solutions_fitness(self._population_size)
+        self._best_score = -100.0
+        self._best_sol = None
+        print(
+            (
+                f"Although starting over the best solution in "
+                f"all execution is with fitness: {self._best_score_in_all_executions}"
+            )
+        )
 
     def next_generation(
             self,
             generation_fitness_tuples_list: List[Tuple[Permutation, float]]
     ) -> List[Tuple[Permutation, float]]:
+        """
+        This function is responsible for creating the next generation given the current one.
+        :param generation_fitness_tuples_list: list of tuples, each tuple contains a Permutation and its fitness score
+        :return: the next generation. list of tuples, each tuple contains a Permutation and its fitness score
+        """
         next_gen: List[Tuple[Permutation, float]] = []
 
-        keep_old_percentage, mutations_percentage, crossover_percentage = (0.35, 0.05, 0.5)
-
-        n_keep_old = int(self._population_size * keep_old_percentage)
-        n_mutations = int(self._population_size * mutations_percentage)
-        n_crossovers = int(self._population_size * crossover_percentage)
-        n_random = max(self._population_size - (n_keep_old + n_mutations + n_crossovers), 0)
-
         # add random generations
-        next_gen.extend(self._generate_generation_solutions_fitness(n_random))
+        next_gen.extend(self._generate_generation_solutions_fitness(self._n_random))
 
         # keep elitism
-        next_gen.extend(generation_fitness_tuples_list[:n_keep_old])
+        next_gen.extend(generation_fitness_tuples_list[:self._n_keep_old])
 
         # calculate chances to better select crossover couples
         all_fitness = [fit for _, fit in generation_fitness_tuples_list]
@@ -287,7 +333,7 @@ class Solver:
 
         # crossovers
         crossovers: List[Permutation] = []
-        for i in range(n_crossovers):
+        for i in range(self._n_crossovers):
             (permutation_1, fitness_1), (permutation_2, fitness_2) = random.choices(
                 generation_fitness_tuples_list,
                 k=2,
@@ -298,7 +344,7 @@ class Solver:
 
         # mutations
         mutations: List[Permutation] = []
-        for i in range(n_mutations):
+        for i in range(self._n_mutations):
             permutation, fitness = random.choice(generation_fitness_tuples_list)
             mutations.append(Permutation.mutation(permutation, 0.05))
         next_gen.extend(self.evaluate_generation(mutations))
@@ -330,6 +376,8 @@ if __name__ == "__main__":
     dictionary = EnglishDictionary('dict.txt', 'Letter2_Freq.txt', 'Letter_Freq.txt')
     with open(r"enc.txt", "r") as f:
         txt = f.read()
-    solver = NormalSolver(population_size=1000, text=txt, english_dictionary=dictionary)
-    solver.solve(400)
-    print(solver._best_sol.translate(txt))
+    # solver = NormalSolver(population_size=1000, text=txt, english_dictionary=dictionary)
+    solver = NormalSolver(population_size=750, text=txt, english_dictionary=dictionary)
+
+    solver.solve(num_of_generations=400, n_stuck=100)
+    print(solver._best_sol_in_all_executions.translate(txt))
