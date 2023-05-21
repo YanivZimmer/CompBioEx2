@@ -29,6 +29,26 @@ class Permutation:
             print(f"not valid permutation:{permutation_dict}")
         self._permutation = permutation_dict
 
+    def clone_permutation(self,permutation) -> Permutation:
+        return Permutation(english_dictionary=self._english_dictionary
+                           ,permutation_dict=permutation
+                           ,exempt_from_permutation=self._not_in_permutation)
+
+    @staticmethod
+    def swap_permute(permute: Dict, letter1: str, letter2: str):
+        y1 = permute[letter1]
+        permute[letter1] = permute[letter2]
+        permute[letter2] = y1
+
+    def local_optimize(self, n:int):
+        candidate = dict(self._permutation)
+        for _ in range(n):
+            letter1, letter2 = random.sample(candidate.keys(), 2)
+            self.swap_permute(candidate, letter1, letter2)
+        return self.clone_permutation(permutation=candidate)
+
+
+
     def is_valid_permutation_dict(self, permutation_dict: Dict[str, str] = None) -> bool:
         """
         :param permutation_dict: dictionary
@@ -368,8 +388,20 @@ class LamarkSolver(Solver):
     pass
 
 
+
 class DarwinSolver(Solver):
-    pass
+    def __init__(self, population_size: int, text: str, english_dictionary: EnglishDictionary, local_optimization_n: int):
+        super().__init__(population_size, text, english_dictionary)
+        self.local_optimization_n = local_optimization_n
+
+
+    def _generate_generation_solutions_fitness(self, size: int) -> List[Tuple[Permutation, float]]:
+        solutions = self._generate_generation(size)
+        return sorted(
+            [(solution, solution.local_optimize(self.local_optimization_n).fitness(self._text)) for solution in solutions],
+            reverse=True,
+            key=lambda x: x[1]
+        )
 
 
 if __name__ == "__main__":
