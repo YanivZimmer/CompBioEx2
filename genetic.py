@@ -385,7 +385,32 @@ they pass to the next episode.
 
 
 class LamarkSolver(Solver):
-    pass
+    def __init__(self, population_size: int, text: str, english_dictionary: EnglishDictionary,
+                 n_local_optimization: int):
+        self.n_local_optimization = n_local_optimization
+        super().__init__(population_size, text, english_dictionary)
+
+    def update_solution(self):
+        self.execution_stat(self._generation)
+        self._generation = self.next_generation(self._generation)
+
+    def get_the_better_with_fitness(self, candidate1: Permutation, candidate2: Permutation) -> Tuple[Permutation, float]:
+        fitness1 = candidate1.fitness(self._text)
+        fitness2 = candidate2.fitness(self._text)
+        if fitness1 > fitness1:
+            return candidate1, fitness1
+        return candidate2, fitness2
+
+    def _generate_generation_solutions_fitness(self, size: int) -> List[Tuple[Permutation, float]]:
+        solutions = self._generate_generation(size)
+        candidates = [solution.local_optimize(self.n_local_optimization) for solution in solutions]
+        best_after_local_opt = [self.get_the_better_with_fitness(x, y) for x, y in zip(solutions, candidates)]
+
+        return sorted(
+            best_after_local_opt,
+            reverse=True,
+            key=lambda x: x[1]
+        )
 
 
 class DarwinSolver(Solver):
@@ -411,8 +436,10 @@ if __name__ == "__main__":
     dictionary = EnglishDictionary('dict.txt', 'Letter2_Freq.txt', 'Letter_Freq.txt')
     with open(r"enc.txt", "r") as f:
         txt = f.read()
-    # solver = NormalSolver(population_size=1000, text=txt, english_dictionary=dictionary)
+
     # solver = NormalSolver(population_size=750, text=txt, english_dictionary=dictionary)
-    solver = DarwinSolver(population_size=750, text=txt, english_dictionary=dictionary,n_local_optimization=5)
+    # solver = DarwinSolver(population_size=750, text=txt, english_dictionary=dictionary,n_local_optimization=5)
+    solver = LamarkSolver(population_size=750, text=txt, english_dictionary=dictionary,n_local_optimization=5)
+
     solver.solve(num_of_generations=400, n_stuck=100)
     print(solver._best_sol_in_all_executions.translate(txt))
