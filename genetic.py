@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import functools
 import statistics
+import typing
 from typing import Dict, List, Tuple, Optional
 import random
 import re
-
+import matplotlib.pyplot as plt
+import numpy as np
 from english_dictionary import EnglishDictionary
 
 
@@ -292,11 +294,13 @@ class Solver:
         n_generation = 0
         n_turns_with_best_score = 0
         last_best_score = self._best_score
-
+        best_scores = []
+        average_scores = []
         while run:
             self.update_solution()
             print(f"mean gen {n_generation} score:{self._gen_score}, best score:{self._best_score}, best total score:{self._best_score_in_all_executions}")
-
+            best_scores.append(self._best_score)
+            average_scores.append(self._gen_score)
             #  update number of turns with best score
             if last_best_score == self._best_score:
                 n_turns_with_best_score += 1
@@ -314,7 +318,7 @@ class Solver:
 
             last_best_score = self._best_score
             n_generation += 1
-
+        return best_scores,average_scores
     def start_over(self):
         """
         This function starts the generation from the beginning again (probably because it stuck)
@@ -431,15 +435,34 @@ class DarwinSolver(Solver):
             key=lambda x: x[1]
         )
 
+Graph = typing.NamedTuple("Graph", [("graph", typing.List[int]), ("description", str), ("color", str)])
+def plot_experiment(graphs: typing.List[Graph]):
+    for graph in graphs:
+        size = len(graph.graph)
+        plt.plot(np.arange(0, size), graph.graph, label=graph.description, color=graph.color, marker=".", markersize=5)
+
+    plt.legend()
+    plt.suptitle("Generation statistics graph", fontsize=20)
+    plt.show()
 
 if __name__ == "__main__":
     dictionary = EnglishDictionary('dict.txt', 'Letter2_Freq.txt', 'Letter_Freq.txt')
     with open(r"enc.txt", "r") as f:
         txt = f.read()
 
-    # solver = NormalSolver(population_size=750, text=txt, english_dictionary=dictionary)
-    # solver = DarwinSolver(population_size=750, text=txt, english_dictionary=dictionary,n_local_optimization=5)
-    solver = LamarkSolver(population_size=750, text=txt, english_dictionary=dictionary,n_local_optimization=5)
+    solvers = [
+        NormalSolver(population_size=150, text=txt, english_dictionary=dictionary),
+        DarwinSolver(population_size=150, text=txt, english_dictionary=dictionary,n_local_optimization=5),
+        LamarkSolver(population_size=150, text=txt, english_dictionary=dictionary,n_local_optimization=5)
+    ]
+    names = ['normal', 'darwin', 'lamark']
+    colors = ['red', 'magenta', 'blue', 'green', 'black', 'grey']
 
-    solver.solve(num_of_generations=400, n_stuck=100)
-    print(solver._best_sol_in_all_executions.translate(txt))
+    graphs = []
+    for i, (solver, name) in enumerate(zip(solvers, names)):
+        best_score, average_score = solver.solve(num_of_generations=400, n_stuck=100)
+        graphs.append(Graph(best_score,f'best score {name}', colors[2 * i]))
+        graphs.append(Graph(average_score, f'average score {name}', colors[2 * i+1]))
+
+    plot_experiment(graphs)
+    #print(solver._best_sol_in_all_executions.translate(txt))
