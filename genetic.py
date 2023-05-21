@@ -41,9 +41,9 @@ class Permutation:
         permute[letter2] = y1
 
     def local_optimize(self, n:int):
-        candidate = dict(self._permutation)
+        candidate = self._permutation.copy()
         for _ in range(n):
-            letter1, letter2 = random.sample(candidate.keys(), 2)
+            letter1, letter2 = random.sample(sorted(candidate.keys()), 2)
             self.swap_permute(candidate, letter1, letter2)
         return self.clone_permutation(permutation=candidate)
 
@@ -388,17 +388,20 @@ class LamarkSolver(Solver):
     pass
 
 
-
 class DarwinSolver(Solver):
-    def __init__(self, population_size: int, text: str, english_dictionary: EnglishDictionary, local_optimization_n: int):
+    def __init__(self, population_size: int, text: str, english_dictionary: EnglishDictionary,
+                 n_local_optimization: int):
+        self.n_local_optimization = n_local_optimization
         super().__init__(population_size, text, english_dictionary)
-        self.local_optimization_n = local_optimization_n
 
+    def update_solution(self):
+        self.execution_stat(self._generation)
+        self._generation = self.next_generation(self._generation)
 
     def _generate_generation_solutions_fitness(self, size: int) -> List[Tuple[Permutation, float]]:
         solutions = self._generate_generation(size)
         return sorted(
-            [(solution, solution.local_optimize(self.local_optimization_n).fitness(self._text)) for solution in solutions],
+            [(solution, solution.local_optimize(self.n_local_optimization).fitness(self._text)) for solution in solutions],
             reverse=True,
             key=lambda x: x[1]
         )
@@ -409,7 +412,7 @@ if __name__ == "__main__":
     with open(r"enc.txt", "r") as f:
         txt = f.read()
     # solver = NormalSolver(population_size=1000, text=txt, english_dictionary=dictionary)
-    solver = NormalSolver(population_size=750, text=txt, english_dictionary=dictionary)
-
+    # solver = NormalSolver(population_size=750, text=txt, english_dictionary=dictionary)
+    solver = DarwinSolver(population_size=750, text=txt, english_dictionary=dictionary,n_local_optimization=5)
     solver.solve(num_of_generations=400, n_stuck=100)
     print(solver._best_sol_in_all_executions.translate(txt))
