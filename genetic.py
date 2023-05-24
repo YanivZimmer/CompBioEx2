@@ -186,7 +186,8 @@ class Permutation:
         cnt_correct_token = 0
         cnt_total_pairs = 0
         cnt_letters = 0
-        cnt_trigram = 0
+        cnt_prefix = 0
+        cnt_suffix = 0
         for token in tokens:
             translated_token = self.translate(token=token)
             # token is a word in dictionary
@@ -201,11 +202,18 @@ class Permutation:
                     cnt_total_pairs += pair_freq
                     # count the unsolved token frequency
                     cnt_letters += self._english_dictionary.letter_to_freq[second_letter]
-                cnt_trigram += self.trigram(translated_token)
-        return 2 * cnt_correct_token + cnt_trigram + 15 * cnt_total_pairs + cnt_letters
+                cnt_prefix += self.prefix(translated_token[:self._english_dictionary.prefix_size])
+                cnt_suffix += self.suffix(translated_token[-self._english_dictionary.suffix_size:])
 
-    def trigram(self, translated_token: str) -> int:
-        if translated_token in self._english_dictionary.trigram:
+        return 2 * cnt_correct_token + cnt_prefix + cnt_suffix + 15 * cnt_total_pairs + cnt_letters
+
+    def suffix(self, translated_token: str) -> int:
+        if translated_token in self._english_dictionary.suffix:
+            return 1
+        return 0
+
+    def prefix(self, translated_token: str) -> int:
+        if translated_token in self._english_dictionary.prefix:
             return 1
         return 0
 
