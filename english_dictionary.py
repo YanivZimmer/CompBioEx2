@@ -10,7 +10,7 @@ class EnglishDictionary:
         self.words = self._read_file_as_set(words_path)
         self.letter_pairs_to_freq = self._read_file_as_dict(pair_dict_path)
         self.letter_to_freq = self._read_file_as_dict(letter_dict_path)
-
+        self.trigram = self._read_file_as_prefix_set(pair_dict_path, prefix_size=3)
         # letter_freq = {}
         # for first_letter, second_letter in self.letter_pairs_to_freq:
         #     letter_pairs = f"{first_letter}{second_letter}"
@@ -45,6 +45,18 @@ class EnglishDictionary:
             for row in reader:
                 try:
                     data.add(row[0].lower())
+                except:
+                    pass
+        return data
+
+    @staticmethod
+    def _read_file_as_prefix_set(file_path, prefix_size=3) -> set:
+        data = set()
+        with open(file_path, "r") as file:
+            reader = csv.reader(file, delimiter="\n")
+            for row in reader:
+                try:
+                    data.add(row[0][:prefix_size].lower())
                 except:
                     pass
         return data
