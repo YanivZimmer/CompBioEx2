@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import functools
-import statistics
-from typing import Dict, List, Tuple, Optional
+import math
+from typing import Dict, List, Tuple, Optional, Callable
 import random
 import re
 
@@ -162,32 +161,46 @@ class Permutation:
         tokens = self._tokenize(txt=txt)
 
         cnt_correct_token = 0
-        cnt_total_pairs = 0
+        cnt_letter_pairs = 0
         cnt_letters = 0
 
         for token in tokens:
             translated_token = self.translate(token=token)
+            token_len = len(token)
+
             # token is a word in dictionary
             if translated_token in self._english_dictionary.words:
-                cnt_correct_token += len(translated_token)
+                cnt_correct_token += token_len
             else:
                 cnt_letters += self._english_dictionary.letter_to_freq[translated_token[0]]
                 for first_letter, second_letter in zip(translated_token, translated_token[1:]):
                     # count the pairs of unsolved tokens
                     pair = f"{first_letter}{second_letter}"
-                    pair_freq = self._english_dictionary.letter_pairs_to_freq[pair]
-                    cnt_total_pairs += pair_freq
+                    pair_freq = self._english_dictionary.letter_pairs_to_freq[pair] / self._english_dictionary.letter_to_freq[first_letter]
+                    cnt_letter_pairs += pair_freq * 2
                     # count the unsolved token frequency
                     cnt_letters += self._english_dictionary.letter_to_freq[second_letter]
 
-        return 2 * cnt_correct_token + 15 * cnt_total_pairs + cnt_letters
+        return 2 * cnt_correct_token + cnt_letter_pairs + cnt_letters
 
 
 class Solver:
-    def __init__(self, population_size: int, text: str, english_dictionary: EnglishDictionary):
+    def __init__(
+            self,
+            population_size: int,
+            text: str,
+            english_dictionary: EnglishDictionary,
+            crossover_choose_func: str,
+            tournament_winner_probability: float,
+            tournament_size: int,
+    ):
         self._population_size = population_size  # number of solution in each generation
         self._text = text
         self._english_dictionary = english_dictionary
+        self._crossover_choose_func = crossover_choose_func
+        self._tournament_winner_probability = tournament_winner_probability
+        self._tournament_size = tournament_size
+
         self._permutations = []
 
         # generation statistics
@@ -196,21 +209,37 @@ class Solver:
         self._gen_score = 0
         self._best_sol: Optional[Permutation] = None
 
+        self._number_of_fitness_executions_in_all_executions = 0
         self._best_score_in_all_executions = -100
         self._best_sol_in_all_executions: Optional[Permutation] = None
 
+        self._fitness_counter = 0
         # population settings
-        self._keep_old_percentage = 0.15  # elite
-        self._mutation_percentage = 0.05
-        self._crossover_percentage = 0.5
+        self._keep_old_percentage = 0.05  # elite
+        self._mutation_percentage = 0.3
+        self._crossover_percentage = 0.95
 
         self._n_keep_old = int(self._population_size * self._keep_old_percentage)
         self._n_mutations = int(self._population_size * self._mutation_percentage)
         self._n_crossovers = int(self._population_size * self._crossover_percentage)
 
         self._n_random = max(self._population_size - (self._n_keep_old + self._n_mutations + self._n_crossovers), 0)
-
         self._generation = self._generate_generation_solutions_fitness(self._population_size)
+
+        self._tournament_prob = [self._tournament_winner_probability]
+        for i in range(1, self._tournament_size):
+            self._tournament_prob.append(self._tournament_prob[i - 1] * (1.0 - self._tournament_winner_probability))
+
+        self._selection_func = {
+            "WeightedFitness": self.weighted_fitness_index_choose,
+            "Tournament": self.tournament_selection,
+            "Rank": self.ranks_fitness_index_choose
+        }
+
+    def crossover_func(self, func_name: str) -> Optional[Callable]:
+        if func_name in self._selection_func:
+            return self._selection_func[func_name]
+        return None
 
     def _generate_generation(self, size: int) -> List[Permutation]:
         """
@@ -223,6 +252,7 @@ class Solver:
 
     def _generate_generation_solutions_fitness(self, size: int) -> List[Tuple[Permutation, float]]:
         solutions = self._generate_generation(size)
+        self._fitness_counter += size
         return sorted(
             [(solution, solution.fitness(self._text)) for solution in solutions],
             reverse=True,
@@ -234,6 +264,7 @@ class Solver:
         :param solutions: list of permutations
         :return: returns a list that is constructed of the solutions fitness
         """
+        self._fitness_counter += len(solutions)
         return sorted(
             [(solution, solution.fitness(txt=self._text)) for solution in solutions],
             reverse=True,
@@ -251,9 +282,13 @@ class Solver:
         generation_fitness_list = [fitness_score for _, fitness_score in solutions]
 
         best_permutation_in_this_turn, best_fitness_in_this_turn = solutions[0]
-
         # list is ordered id a descending fitness order
         self._gen_score = sum(generation_fitness_list) / self._population_size
+
+        if self._gen_score > best_fitness_in_this_turn or best_fitness_in_this_turn != max(generation_fitness_list):
+            print(f"generation max:{best_fitness_in_this_turn}, {max(generation_fitness_list)}")
+            print(f"len {self._population_size}, {len(solutions)}")
+            raise Exception()
 
         if best_fitness_in_this_turn > self._best_score:
             self._best_sol = best_permutation_in_this_turn
@@ -263,7 +298,11 @@ class Solver:
         if best_fitness_in_this_turn > self._best_score_in_all_executions:
             self._best_sol_in_all_executions = best_permutation_in_this_turn
             self._best_score_in_all_executions = best_fitness_in_this_turn
-            print(f"best score in all executions found:{best_fitness_in_this_turn}")
+            self._number_of_fitness_executions_in_all_executions = self._fitness_counter
+            print(
+                f"best score in all executions found:{best_fitness_in_this_turn},"
+                f" fitness executions:{self._number_of_fitness_executions_in_all_executions}"
+            )
 
         self._worst_score = generation_fitness_list[-1]
 
@@ -301,6 +340,7 @@ class Solver:
         """
         self._generation = self._generate_generation_solutions_fitness(self._population_size)
         self._best_score = -100.0
+        self._fitness_counter = 0
         self._best_sol = None
         print(
             (
@@ -308,6 +348,53 @@ class Solver:
                 f"all execution is with fitness: {self._best_score_in_all_executions}"
             )
         )
+
+    def weighted_fitness_index_choose(self, generation_fitness_tuples_list: List[Tuple[Permutation, float]], size: int):
+        all_fitness = [fit for _, fit in generation_fitness_tuples_list]
+        sum_fitness = sum(all_fitness)
+        chances = [fit / sum_fitness for fit in all_fitness]
+        for i in range(size):
+            yield random.choices(
+                generation_fitness_tuples_list,
+                k=2,
+                weights=chances
+            )
+
+    def ranks_fitness_index_choose(self, generation_fitness_tuples_list: List[Tuple[Permutation, float]], size: int):
+        population_size = len(generation_fitness_tuples_list)
+        chances = [math.sqrt(population_size - i) for i in range(population_size)]
+
+        assert len(chances) == population_size, f"chances len:{len(chances)}, pop size:{population_size}"
+
+        for i in range(size):
+            yield random.choices(
+                generation_fitness_tuples_list,
+                k=2,
+                weights=chances
+            )
+
+    def tournament_selection(self,
+                             generation_fitness_tuples_list: List[Tuple[Permutation, float]],
+                             size: int):
+
+        for i in range(size):
+            # randomly select indexes
+            indexes_1 = random.choices(range(len(generation_fitness_tuples_list)), k=self._tournament_size)
+            indexes_2 = random.choices(range(len(generation_fitness_tuples_list)), k=self._tournament_size)
+            # take the randomized indexes
+            gen_1 = [generation_fitness_tuples_list[idx] for idx in indexes_1]
+            gen_2 = [generation_fitness_tuples_list[idx2] for idx2 in indexes_2]
+            # sort by fitness
+            sorted_gen_1 = sorted(gen_1, reverse=True, key=lambda x: x[1])
+            sorted_gen_2 = sorted(gen_2, reverse=True, key=lambda x: x[1])
+            # randomize by prob list
+            idx1 = random.choices(sorted_gen_1, k=1, weights=self._tournament_prob)[0]
+            idx2 = random.choices(sorted_gen_2, k=1, weights=self._tournament_prob)[0]
+            yield idx1, idx2
+
+    def tournament(self, permutations: List[Permutation]) -> Tuple[Permutation, float]:
+        solutions_with_fitness = self.evaluate_generation(permutations)
+        return solutions_with_fitness[0]
 
     def next_generation(
             self,
@@ -322,38 +409,39 @@ class Solver:
 
         # add random generations
         next_gen.extend(self._generate_generation_solutions_fitness(self._n_random))
-
         # keep elitism
         next_gen.extend(generation_fitness_tuples_list[:self._n_keep_old])
-
-        # calculate chances to better select crossover couples
-        all_fitness = [fit for _, fit in generation_fitness_tuples_list]
-        sum_fitness = sum(all_fitness)
-        chances = [fit / sum_fitness for fit in all_fitness]
-
+        next_gen = self.sort_solutions(next_gen)
         # crossovers
         crossovers: List[Permutation] = []
-        for i in range(self._n_crossovers):
-            (permutation_1, fitness_1), (permutation_2, fitness_2) = random.choices(
-                generation_fitness_tuples_list,
-                k=2,
-                weights=chances
-            )
+        selection_function = self.crossover_func(self._crossover_choose_func)
+        for (permutation_1, fitness_1), (permutation_2, fitness_2) in selection_function(
+                generation_fitness_tuples_list=generation_fitness_tuples_list,
+                size=self._n_crossovers):
             crossovers.append(Permutation.crossover(permutation_1, permutation_2))
         next_gen.extend(self.evaluate_generation(crossovers))
 
+        next_gen = sorted(next_gen, reverse=True, key=lambda x: x[1])
+        next_gen_len = len(next_gen)
         # mutations
         mutations: List[Permutation] = []
+
+        number_of_mutations = 1
         for i in range(self._n_mutations):
-            permutation, fitness = random.choice(generation_fitness_tuples_list)
-            mutations.append(Permutation.mutation(permutation, 0.05))
+            idx = random.randint(int(next_gen_len * 0.05) + 1, next_gen_len - number_of_mutations)
+            permutation, fitness = next_gen[idx]
+            # remove sampled permutation
+            next_gen.pop(idx)
+            mutations.append(Permutation.mutation(permutation, 0.1))
+            number_of_mutations += 1
         next_gen.extend(self.evaluate_generation(mutations))
 
-        return sorted(next_gen, reverse=True, key=lambda x: x[1])
+        return self.sort_solutions(next_gen)
 
 
 class NormalSolver(Solver):
     def update_solution(self):
+        self._generation = Solver.sort_solutions(self._generation)
         self.execution_stat(self._generation)
         self._generation = self.next_generation(self._generation)
 
@@ -376,8 +464,18 @@ if __name__ == "__main__":
     dictionary = EnglishDictionary('dict.txt', 'Letter2_Freq.txt', 'Letter_Freq.txt')
     with open(r"enc.txt", "r") as f:
         txt = f.read()
-    # solver = NormalSolver(population_size=1000, text=txt, english_dictionary=dictionary)
-    solver = NormalSolver(population_size=750, text=txt, english_dictionary=dictionary)
 
-    solver.solve(num_of_generations=400, n_stuck=100)
+    solver = NormalSolver(
+        population_size=100,
+        text=txt,
+        english_dictionary=dictionary,
+        crossover_choose_func="Tournament",
+        tournament_winner_probability=0.5,
+        tournament_size=4
+    )
+    # solver = NormalSolver(population_size=10, text=txt, english_dictionary=dictionary)
+    # solver.solve(num_of_generations=10, n_stuck=100)
+
+    solver.solve(num_of_generations=250, n_stuck=60)
     print(solver._best_sol_in_all_executions.translate(txt))
+    print(f"number called to fitness:{solver._number_of_fitness_executions_in_all_executions}")
