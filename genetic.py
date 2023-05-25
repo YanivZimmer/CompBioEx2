@@ -388,8 +388,11 @@ class Solver:
             permutation, fitness = random.choice(generation_fitness_tuples_list)
             mutations.append(Permutation.mutation(permutation, 0.05))
         next_gen.extend(self.evaluate_generation(mutations))
-
+        next_gen = self.optimize(next_gen)
         return sorted(next_gen, reverse=True, key=lambda x: x[1])
+
+    def optimize(self,gen):
+        return gen
 
 
 class NormalSolver(Solver):
@@ -409,6 +412,17 @@ class LamarkSolver(Solver):
                  n_local_optimization: int):
         self.n_local_optimization = n_local_optimization
         super().__init__(population_size, text, english_dictionary)
+
+    def optimize(self,gen):
+        solutions = [t[0] for t in gen]
+        candidates = [solution.local_optimize(self.n_local_optimization) for solution in solutions]
+        best_after_local_opt = [self.get_the_better_with_fitness(x, y) for x, y in zip(solutions, candidates)]
+
+        return sorted(
+            best_after_local_opt,
+            reverse=True,
+            key=lambda x: x[1]
+        )
 
     def update_solution(self):
         self.execution_stat(self._generation)
@@ -439,6 +453,14 @@ class DarwinSolver(Solver):
         self.n_local_optimization = n_local_optimization
         super().__init__(population_size, text, english_dictionary)
 
+    def optimize(self, gen):
+        solutions = [t[0] for t in gen]
+        return sorted(
+            [(solution, solution.local_optimize(self.n_local_optimization).fitness(self._text)) for solution in
+             solutions],
+            reverse=True,
+            key=lambda x: x[1]
+        )
     def update_solution(self):
         self.execution_stat(self._generation)
         self._generation = self.next_generation(self._generation)
@@ -471,7 +493,7 @@ if __name__ == "__main__":
         DarwinSolver(population_size=150, text=txt, english_dictionary=dictionary,n_local_optimization=5),
         LamarkSolver(population_size=150, text=txt, english_dictionary=dictionary,n_local_optimization=5)
     ]
-    names = ['normal', 'darwin', 'lamark']
+    names = [ 'normal' ,'darwin', 'lamark']
     colors = ['red', 'magenta', 'blue', 'green', 'black', 'grey']
 
     graphs = []
