@@ -310,12 +310,12 @@ class Solver:
         n_generation = 0
         n_turns_with_best_score = 0
         last_best_score = self._best_score
-        best_scores = []
+        best_total_score = []
         average_scores = []
         while run:
             self.update_solution()
             print(f"mean gen {n_generation} score:{self._gen_score}, best score:{self._best_score}, best total score:{self._best_score_in_all_executions}")
-            best_scores.append(self._best_score)
+            best_total_score.append(self._best_score_in_all_executions)
             average_scores.append(self._gen_score)
             #  update number of turns with best score
             if last_best_score == self._best_score:
@@ -334,7 +334,7 @@ class Solver:
 
             last_best_score = self._best_score
             n_generation += 1
-        return best_scores,average_scores
+        return best_total_score,average_scores
     def start_over(self):
         """
         This function starts the generation from the beginning again (probably because it stuck)
@@ -391,7 +391,7 @@ class Solver:
         next_gen = self.optimize(next_gen)
         return sorted(next_gen, reverse=True, key=lambda x: x[1])
 
-    def optimize(self,gen):
+    def optimize(self, gen):
         return gen
 
 
@@ -413,7 +413,7 @@ class LamarkSolver(Solver):
         self.n_local_optimization = n_local_optimization
         super().__init__(population_size, text, english_dictionary)
 
-    def optimize(self,gen):
+    def optimize(self, gen):
         solutions = [t[0] for t in gen]
         candidates = [solution.local_optimize(self.n_local_optimization) for solution in solutions]
         best_after_local_opt = [self.get_the_better_with_fitness(x, y) for x, y in zip(solutions, candidates)]
@@ -431,7 +431,7 @@ class LamarkSolver(Solver):
     def get_the_better_with_fitness(self, candidate1: Permutation, candidate2: Permutation) -> Tuple[Permutation, float]:
         fitness1 = candidate1.fitness(self._text)
         fitness2 = candidate2.fitness(self._text)
-        if fitness1 > fitness1:
+        if fitness1 > fitness2:
             return candidate1, fitness1
         return candidate2, fitness2
 
@@ -456,7 +456,9 @@ class DarwinSolver(Solver):
     def optimize(self, gen):
         solutions = [t[0] for t in gen]
         return sorted(
-            [(solution, solution.local_optimize(self.n_local_optimization).fitness(self._text)) for solution in
+            [(solution,
+              max(solution.local_optimize(self.n_local_optimization).fitness(self._text),
+                  solution.fitness(self._text))) for solution in
              solutions],
             reverse=True,
             key=lambda x: x[1]
@@ -499,7 +501,7 @@ if __name__ == "__main__":
     graphs = []
     for i, (solver, name) in enumerate(zip(solvers, names)):
         best_score, average_score = solver.solve(num_of_generations=400, n_stuck=100)
-        graphs.append(Graph(best_score,f'best score {name}', colors[2 * i]))
+        graphs.append(Graph(best_score,f'best total score {name}', colors[2 * i]))
         graphs.append(Graph(average_score, f'average score {name}', colors[2 * i+1]))
 
     plot_experiment(graphs)
