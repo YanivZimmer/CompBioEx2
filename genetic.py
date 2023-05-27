@@ -57,6 +57,24 @@ class Permutation:
     def __repr__(self):
         return str(self._permutation)
 
+    def local_optimize(self, n: int):
+        candidate = self._permutation.copy()
+        for _ in range(n):
+            letter1, letter2 = random.sample(sorted(candidate.keys()), 2)
+            self.swap_permute(candidate, letter1, letter2)
+        return self.clone_permutation(permutation=candidate)
+
+    def clone_permutation(self, permutation) -> Permutation:
+        return Permutation(english_dictionary=self._english_dictionary
+                           , permutation_dict=permutation
+                           , exempt_from_permutation=self._not_in_permutation)
+
+    @staticmethod
+    def swap_permute(permute: Dict, letter1: str, letter2: str):
+        y1 = permute[letter1]
+        permute[letter1] = permute[letter2]
+        permute[letter2] = y1
+
     def _tokenize(self, txt: str) -> List[str]:
         """
         :param txt: str
@@ -459,18 +477,107 @@ they pass to the next episode.
 
 
 class LamarkSolver(Solver):
-    pass
+    def __init__(
+            self,
+            population_size: int,
+            text: str,
+            english_dictionary: EnglishDictionary,
+            crossover_choose_func: str,
+            tournament_winner_probability: float,
+            tournament_size: int,
+            n_local_optimization: int):
+        self.n_local_optimization = n_local_optimization
+        super().__init__(population_size=population_size,
+                         text=text,
+                         english_dictionary=english_dictionary,
+                         crossover_choose_func=crossover_choose_func,
+                         tournament_winner_probability=tournament_winner_probability,
+                         tournament_size=tournament_size)
+
+    def optimize(self, gen):
+        solutions = [t[0] for t in gen]
+        candidates = [solution.local_optimize(self.n_local_optimization) for solution in solutions]
+        best_after_local_opt = [self.get_the_better_with_fitness(x, y) for x, y in zip(solutions, candidates)]
+
+        return sorted(
+            best_after_local_opt,
+            reverse=True,
+            key=lambda x: x[1]
+        )
+
+    def update_solution(self):
+        self.execution_stat(self._generation)
+        self._generation = self.next_generation(self._generation)
+
+    def get_the_better_with_fitness(self, candidate1: Permutation, candidate2: Permutation) -> Tuple[Permutation, float]:
+        fitness1 = candidate1.fitness(self._text)
+        fitness2 = candidate2.fitness(self._text)
+        if fitness1 > fitness2:
+            return candidate1, fitness1
+        return candidate2, fitness2
+
+    def _generate_generation_solutions_fitness(self, size: int) -> List[Tuple[Permutation, float]]:
+        solutions = self._generate_generation(size)
+        candidates = [solution.local_optimize(self.n_local_optimization) for solution in solutions]
+        best_after_local_opt = [self.get_the_better_with_fitness(x, y) for x, y in zip(solutions, candidates)]
+
+        return sorted(
+            best_after_local_opt,
+            reverse=True,
+            key=lambda x: x[1]
+        )
 
 
 class DarwinSolver(Solver):
-    pass
+    def __init__(
+            self,
+            population_size: int,
+            text: str,
+            english_dictionary: EnglishDictionary,
+            crossover_choose_func: str,
+            tournament_winner_probability: float,
+            tournament_size: int,
+            n_local_optimization: int):
+        self.n_local_optimization = n_local_optimization
+        super().__init__(
+            population_size=population_size,
+            text=text,
+            english_dictionary=english_dictionary,
+            crossover_choose_func=crossover_choose_func,
+            tournament_winner_probability=tournament_winner_probability,
+            tournament_size=tournament_size
+        )
+
+    def optimize(self, gen):
+        solutions = [t[0] for t in gen]
+        return sorted(
+            [(solution,
+              max(solution.local_optimize(self.n_local_optimization).fitness(self._text),
+                  solution.fitness(self._text))) for solution in
+             solutions],
+            reverse=True,
+            key=lambda x: x[1]
+        )
+
+    def update_solution(self):
+        self.execution_stat(self._generation)
+        self._generation = self.next_generation(self._generation)
+
+    def _generate_generation_solutions_fitness(self, size: int) -> List[Tuple[Permutation, float]]:
+        solutions = self._generate_generation(size)
+        return sorted(
+            [(solution, solution.local_optimize(self.n_local_optimization).fitness(self._text)) for solution in solutions],
+            reverse=True,
+            key=lambda x: x[1]
+        )
+
 
 
 if __name__ == "__main__":
     dictionary = EnglishDictionary('dict.txt', 'Letter2_Freq.txt', 'Letter_Freq.txt')
     with open(r"enc.txt", "r") as f:
         txt = f.read()
-
+    """
     solver = NormalSolver(
         population_size=200,
         text=txt,
@@ -481,10 +588,22 @@ if __name__ == "__main__":
         tournament_winner_probability=0.3,
         tournament_size=7
     )
-    # solver = NormalSolver(population_size=10, text=txt, english_dictionary=dictionary)
-    # solver.solve(num_of_generations=10, n_stuck=100)
-
     solver.solve(num_of_generations=200, n_stuck=50)
     print(solver._best_sol_in_all_executions)
     print(solver._best_sol_in_all_executions.translate(txt))
     print(f"number called to fitness:{solver._number_of_fitness_executions_in_all_executions}")
+    """
+    lamark_solver = LamarkSolver(
+        population_size=200,
+        text=txt,
+        english_dictionary=dictionary,
+        crossover_choose_func="Tournament",
+        tournament_winner_probability=0.3,
+        tournament_size=7,
+        n_local_optimization=2
+    )
+    lamark_solver.solve(num_of_generations=200, n_stuck=50)
+    print(lamark_solver._best_sol_in_all_executions)
+    print(lamark_solver._best_sol_in_all_executions.translate(txt))
+    print(f"number called to fitness:{lamark_solver._number_of_fitness_executions_in_all_executions}")
+
