@@ -1,9 +1,12 @@
 from __future__ import annotations
-
-import math
 from typing import Dict, List, Tuple, Optional, Callable
-import random
 import re
+import math
+import typing
+import random
+import numpy as np
+import matplotlib.pyplot as plt
+
 
 from english_dictionary import EnglishDictionary
 
@@ -335,11 +338,14 @@ class Solver:
         n_generation = 0
         n_turns_with_best_score = 0
         last_best_score = self._best_score
+        best_total_score = []
+        average_scores = []
 
         while run:
             self.update_solution()
             print(f"mean gen {n_generation} score:{self._gen_score}, best score:{self._best_score}, best total score:{self._best_score_in_all_executions}")
-
+            best_total_score.append(self._best_score_in_all_executions)
+            average_scores.append(self._gen_score)
             #  update number of turns with best score
             if last_best_score == self._best_score:
                 n_turns_with_best_score += 1
@@ -357,6 +363,8 @@ class Solver:
 
             last_best_score = self._best_score
             n_generation += 1
+
+        return best_total_score, average_scores
 
     def start_over(self):
         """
@@ -572,6 +580,18 @@ class DarwinSolver(Solver):
         )
 
 
+Graph = typing.NamedTuple("Graph", [("graph", typing.List[int]), ("description", str), ("color", str)])
+
+
+def plot_experiment(graphs: typing.List[Graph]):
+    for graph in graphs:
+        size = len(graph.graph)
+        plt.plot(np.arange(0, size), graph.graph, label=graph.description, color=graph.color, marker=".", markersize=5)
+
+    plt.legend()
+    plt.suptitle("Generation statistics graph", fontsize=20)
+    plt.show()
+
 
 if __name__ == "__main__":
     dictionary = EnglishDictionary('dict.txt', 'Letter2_Freq.txt', 'Letter_Freq.txt')
@@ -583,15 +603,16 @@ if __name__ == "__main__":
         text=txt,
         english_dictionary=dictionary,
         crossover_choose_func="Tournament",
-        # crossover_choose_func="Rank",
-        # crossover_choose_func="WeightedFitness",
         tournament_winner_probability=0.3,
-        tournament_size=7
+        tournament_size=5
     )
+    # crossover_choose_func="Rank",
+    # crossover_choose_func="WeightedFitness",
     solver.solve(num_of_generations=200, n_stuck=50)
     print(solver._best_sol_in_all_executions)
     print(solver._best_sol_in_all_executions.translate(txt))
     print(f"number called to fitness:{solver._number_of_fitness_executions_in_all_executions}")
+    """
     """
     lamark_solver = LamarkSolver(
         population_size=200,
@@ -599,11 +620,64 @@ if __name__ == "__main__":
         english_dictionary=dictionary,
         crossover_choose_func="Tournament",
         tournament_winner_probability=0.3,
-        tournament_size=7,
-        n_local_optimization=2
+        tournament_size=5,
+        n_local_optimization=4
     )
     lamark_solver.solve(num_of_generations=200, n_stuck=50)
     print(lamark_solver._best_sol_in_all_executions)
     print(lamark_solver._best_sol_in_all_executions.translate(txt))
     print(f"number called to fitness:{lamark_solver._number_of_fitness_executions_in_all_executions}")
+    """
+    """
+    darwin_solver = DarwinSolver(
+        population_size=200,
+        text=txt,
+        english_dictionary=dictionary,
+        crossover_choose_func="Tournament",
+        tournament_winner_probability=0.3,
+        tournament_size=5,
+        n_local_optimization=3
+    )
+    darwin_solver.solve(num_of_generations=200, n_stuck=50)
+    print(darwin_solver._best_sol_in_all_executions)
+    print(darwin_solver._best_sol_in_all_executions.translate(txt))
+    print(f"number called to fitness:{darwin_solver._number_of_fitness_executions_in_all_executions}")
+    """
 
+    solvers = [
+        NormalSolver(
+            population_size=200,
+            text=txt,
+            english_dictionary=dictionary,
+            crossover_choose_func="Tournament",
+            tournament_winner_probability=0.75,
+            tournament_size=3
+        ),
+        DarwinSolver(
+            population_size=200,
+            text=txt,
+            english_dictionary=dictionary,
+            crossover_choose_func="Tournament",
+            tournament_winner_probability=0.75,
+            tournament_size=3,
+            n_local_optimization=3
+        ),
+        LamarkSolver(
+            population_size=200,
+            text=txt,
+            english_dictionary=dictionary,
+            crossover_choose_func="Tournament",
+            tournament_winner_probability=0.75,
+            tournament_size=3,
+            n_local_optimization=3
+        )
+    ]
+    names = ['normal', 'darwin', 'lamark']
+    colors = ['red', 'magenta', 'blue', 'green', 'black', 'grey']
+    graphs = []
+    for i, (solver, name) in enumerate(zip(solvers, names)):
+        best_score, average_score = solver.solve(num_of_generations=200, n_stuck=100)
+        graphs.append(Graph(best_score, f'best total score {name}', colors[2 * i]))
+        graphs.append(Graph(average_score, f'average score {name}', colors[2 * i + 1]))
+
+    plot_experiment(graphs)
