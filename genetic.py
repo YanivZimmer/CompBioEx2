@@ -161,6 +161,7 @@ class Permutation:
         tokens = self._tokenize(txt=txt)
 
         cnt_correct_token = 0
+        cnt_letter_trios = 0
         cnt_letter_pairs = 0
         cnt_letters = 0
 
@@ -171,17 +172,22 @@ class Permutation:
             # token is a word in dictionary
             if translated_token in self._english_dictionary.words:
                 cnt_correct_token += token_len
-            else:
-                cnt_letters += self._english_dictionary.letter_to_freq[translated_token[0]]
-                for first_letter, second_letter in zip(translated_token, translated_token[1:]):
-                    # count the pairs of unsolved tokens
-                    pair = f"{first_letter}{second_letter}"
-                    pair_freq = self._english_dictionary.letter_pairs_to_freq[pair] / self._english_dictionary.letter_to_freq[first_letter]
-                    cnt_letter_pairs += pair_freq * 2
-                    # count the unsolved token frequency
-                    cnt_letters += self._english_dictionary.letter_to_freq[second_letter]
+            cnt_letters += self._english_dictionary.letter_to_freq[translated_token[0]]
+            for first_letter, second_letter in zip(translated_token, translated_token[1:]):
+                # count the pairs of unsolved tokens
+                pair = f"{first_letter}{second_letter}"
+                pair_freq = self._english_dictionary.letter_pairs_to_freq[pair] #/ self._english_dictionary.letter_to_freq[first_letter]
+                cnt_letter_pairs += pair_freq
+                # count the unsolved token frequency
+                cnt_letters += self._english_dictionary.letter_to_freq[second_letter]
 
-        return 2 * cnt_correct_token + cnt_letter_pairs + cnt_letters
+            for first_letter, second_letter, third_letter in zip(translated_token, translated_token[1:], translated_token[2:]):
+                letters_trio = f"{first_letter}{second_letter}{third_letter}"
+                if letters_trio in self._english_dictionary.letter_trio_to_freq:
+                    trio_freq = self._english_dictionary.letter_trio_to_freq[letters_trio]
+                    cnt_letter_trios += trio_freq
+        # print(f"n words:{20 * cnt_correct_token}, trios:{cnt_letter_trios * 10}, letter pairs:{cnt_letter_pairs * 2}, letters:{cnt_letters * 0.5}")
+        return 20 * cnt_correct_token + cnt_letter_trios * 10 + cnt_letter_pairs * 2 + cnt_letters * 0.5
 
 
 class Solver:
@@ -215,9 +221,9 @@ class Solver:
 
         self._fitness_counter = 0
         # population settings
-        self._keep_old_percentage = 0.05  # elite
-        self._mutation_percentage = 0.3
-        self._crossover_percentage = 0.95
+        self._keep_old_percentage = 0.1  # elite
+        self._mutation_percentage = 0.4
+        self._crossover_percentage = 0.9
 
         self._n_keep_old = int(self._population_size * self._keep_old_percentage)
         self._n_mutations = int(self._population_size * self._mutation_percentage)
@@ -432,7 +438,7 @@ class Solver:
             permutation, fitness = next_gen[idx]
             # remove sampled permutation
             next_gen.pop(idx)
-            mutations.append(Permutation.mutation(permutation, 0.1))
+            mutations.append(Permutation.mutation(permutation, 0.05))
             number_of_mutations += 1
         next_gen.extend(self.evaluate_generation(mutations))
 
@@ -466,16 +472,19 @@ if __name__ == "__main__":
         txt = f.read()
 
     solver = NormalSolver(
-        population_size=100,
+        population_size=200,
         text=txt,
         english_dictionary=dictionary,
         crossover_choose_func="Tournament",
-        tournament_winner_probability=0.5,
-        tournament_size=4
+        # crossover_choose_func="Rank",
+        # crossover_choose_func="WeightedFitness",
+        tournament_winner_probability=0.3,
+        tournament_size=7
     )
     # solver = NormalSolver(population_size=10, text=txt, english_dictionary=dictionary)
     # solver.solve(num_of_generations=10, n_stuck=100)
 
-    solver.solve(num_of_generations=250, n_stuck=60)
+    solver.solve(num_of_generations=200, n_stuck=50)
+    print(solver._best_sol_in_all_executions)
     print(solver._best_sol_in_all_executions.translate(txt))
     print(f"number called to fitness:{solver._number_of_fitness_executions_in_all_executions}")
