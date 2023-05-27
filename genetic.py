@@ -676,7 +676,7 @@ if __name__ == "__main__":
     colors = ['red', 'magenta', 'blue', 'green', 'black', 'grey']
     graphs = []
     for i, (solver, name) in enumerate(zip(solvers, names)):
-        best_score, average_score = solver.solve(num_of_generations=200, n_stuck=100)
+        best_score, average_score = solver.solve(num_of_generations=130, n_stuck=100)
         graphs.append(Graph(best_score, f'best total score {name}', colors[2 * i]))
         graphs.append(Graph(average_score, f'average score {name}', colors[2 * i + 1]))
 
