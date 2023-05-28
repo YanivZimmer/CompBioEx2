@@ -59,6 +59,11 @@ class Permutation:
         return str(self._permutation)
 
     def local_optimize(self, n: int):
+        """
+        :param n: int
+        :return: returns the permutation after n local optimizes (each optimize is a randomized mapping swap between
+        two letters)
+        """
         candidate = self._permutation.copy()
         for _ in range(n):
             letter1, letter2 = random.sample(sorted(candidate.keys()), 2)
@@ -66,12 +71,22 @@ class Permutation:
         return self.clone_permutation(permutation=candidate)
 
     def clone_permutation(self, permutation) -> Permutation:
+        """
+        :param permutation: Permutation
+        :return: a copy of Permutation (with same properties values)
+        """
         return Permutation(english_dictionary=self._english_dictionary
                            , permutation_dict=permutation
                            , exempt_from_permutation=self._not_in_permutation)
 
     @staticmethod
     def swap_permute(permute: Dict, letter1: str, letter2: str):
+        """
+        :param permute: dictionary
+        :param letter1: str
+        :param letter2: str
+        :return: swaps letter 1 and letter 2 mapping in permutation dict
+        """
         y1 = permute[letter1]
         permute[letter1] = permute[letter2]
         permute[letter2] = y1
@@ -156,6 +171,11 @@ class Permutation:
 
     @staticmethod
     def mutation(permutation: Permutation, probability: float):
+        """
+        :param permutation: Permutation
+        :param probability: float
+        :return: computes the mutation of permutation given a mutation probability
+        """
         if probability < 0 or probability > 1:
             print(f"invalid probability to mutate:{probability}")
             return
