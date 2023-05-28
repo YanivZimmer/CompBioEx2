@@ -9,7 +9,7 @@ Link to code (in Github):
 
 Intro:
 In this project, we simulate the process of text decryption using genetic algorithm (GA). 
-In addition, we test and compare and evaluate the three most commonly used approaches to GA (Normal, Lamarck and Darwin). 
+In addition, we tested, compared and evaluated the three most commonly used approaches to GA (Normal, Lamarck and Darwin). 
 
 
 Execution Steps:

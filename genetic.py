@@ -522,8 +522,8 @@ class LamarkSolver(Solver):
     def optimize(self, gen):
         solutions = [t[0] for t in gen]
         candidates = [solution.local_optimize(self.n_local_optimization) for solution in solutions]
+        self._fitness_counter += len(candidates)
         best_after_local_opt = [self.get_the_better_with_fitness(x, y) for x, y in zip(solutions, candidates)]
-
         return sorted(
             best_after_local_opt,
             reverse=True,
@@ -544,8 +544,8 @@ class LamarkSolver(Solver):
     def _generate_generation_solutions_fitness(self, size: int) -> List[Tuple[Permutation, float]]:
         solutions = self._generate_generation(size)
         candidates = [solution.local_optimize(self.n_local_optimization) for solution in solutions]
+        self._fitness_counter += len(solutions)
         best_after_local_opt = [self.get_the_better_with_fitness(x, y) for x, y in zip(solutions, candidates)]
-
         return sorted(
             best_after_local_opt,
             reverse=True,
@@ -575,6 +575,7 @@ class DarwinSolver(Solver):
 
     def optimize(self, gen):
         solutions = [t[0] for t in gen]
+        self._fitness_counter += len(solutions)
         return sorted(
             [(solution,
               max(solution.local_optimize(self.n_local_optimization).fitness(self._text),
@@ -590,6 +591,7 @@ class DarwinSolver(Solver):
 
     def _generate_generation_solutions_fitness(self, size: int) -> List[Tuple[Permutation, float]]:
         solutions = self._generate_generation(size)
+        self._fitness_counter += len(solutions)
         return sorted(
             [(solution, solution.local_optimize(self.n_local_optimization).fitness(self._text)) for solution in solutions],
             reverse=True,
@@ -616,6 +618,7 @@ if __name__ == "__main__":
     dictionary = EnglishDictionary('dict.txt', 'Letter2_Freq.txt', 'Letter_Freq.txt')
     with open(r"enc.txt", "r") as f:
         txt = f.read()
+    """
     solver = NormalSolver(
         population_size=200,
         text=txt,
@@ -634,8 +637,8 @@ if __name__ == "__main__":
     # write translated txt to file
     with open(r"plain.txt", "w+") as f:
         f.write(translated_txt)
-
     """
+
     lamark_solver = LamarkSolver(
         population_size=200,
         text=txt,
@@ -649,7 +652,7 @@ if __name__ == "__main__":
     print(lamark_solver._best_sol_in_all_executions)
     print(lamark_solver._best_sol_in_all_executions.translate(txt))
     print(f"number called to fitness:{lamark_solver._number_of_fitness_executions_in_all_executions}")
-    """
+
     """
     darwin_solver = DarwinSolver(
         population_size=200,
