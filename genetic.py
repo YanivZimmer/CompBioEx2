@@ -4,8 +4,6 @@ import re
 import math
 import typing
 import random
-import numpy as np
-import matplotlib.pyplot as plt
 
 
 from english_dictionary import EnglishDictionary
@@ -185,10 +183,10 @@ class Permutation:
         cnt_letter_trios = 0
         cnt_letter_pairs = 0
         cnt_letters = 0
-
         for token in tokens:
             translated_token = self.translate(token=token)
             token_len = len(token)
+
 
             # token is a word in dictionary
             if translated_token in self._english_dictionary.words:
@@ -207,7 +205,6 @@ class Permutation:
                 if letters_trio in self._english_dictionary.letter_trio_to_freq:
                     trio_freq = self._english_dictionary.letter_trio_to_freq[letters_trio]
                     cnt_letter_trios += trio_freq
-        # print(f"n words:{20 * cnt_correct_token}, trios:{cnt_letter_trios * 10}, letter pairs:{cnt_letter_pairs * 2}, letters:{cnt_letters * 0.5}")
         return 20 * cnt_correct_token + cnt_letter_trios * 10 + cnt_letter_pairs * 2 + cnt_letters * 0.5
 
 
@@ -583,36 +580,41 @@ class DarwinSolver(Solver):
 Graph = typing.NamedTuple("Graph", [("graph", typing.List[int]), ("description", str), ("color", str)])
 
 
-def plot_experiment(graphs: typing.List[Graph]):
-    for graph in graphs:
-        size = len(graph.graph)
-        plt.plot(np.arange(0, size), graph.graph, label=graph.description, color=graph.color, marker=".", markersize=5)
-
-    plt.legend()
-    plt.suptitle("Generation statistics graph", fontsize=20)
-    plt.show()
+def write_permutation_to_file(permutation: Permutation, output_file_path: str):
+    """
+    :param permutation: Permutation
+    :param output_file_path: location path (string)
+    :return: output the permutation mapping to file
+    """
+    letters = sorted(list(permutation._english_dictionary.letter_to_freq.keys()))
+    with open(output_file_path, "w+") as f:
+        for letter in letters:
+            f.write(f"{letter} {permutation._permutation[letter]}\n")
 
 
 if __name__ == "__main__":
     dictionary = EnglishDictionary('dict.txt', 'Letter2_Freq.txt', 'Letter_Freq.txt')
     with open(r"enc.txt", "r") as f:
         txt = f.read()
-    """
     solver = NormalSolver(
         population_size=200,
         text=txt,
         english_dictionary=dictionary,
         crossover_choose_func="Tournament",
-        tournament_winner_probability=0.3,
-        tournament_size=5
+        tournament_winner_probability=0.4,
+        tournament_size=5,
     )
-    # crossover_choose_func="Rank",
-    # crossover_choose_func="WeightedFitness",
-    solver.solve(num_of_generations=200, n_stuck=50)
+    solver.solve(num_of_generations=200, n_stuck=100)
     print(solver._best_sol_in_all_executions)
-    print(solver._best_sol_in_all_executions.translate(txt))
+    translated_txt = solver._best_sol_in_all_executions.translate(txt)
     print(f"number called to fitness:{solver._number_of_fitness_executions_in_all_executions}")
-    """
+    print(solver._best_sol_in_all_executions.fitness(txt))
+
+    write_permutation_to_file(solver._best_sol_in_all_executions, r"perm.txt")
+    # write translated txt to file
+    with open(r"plain.txt", "w+") as f:
+        f.write(translated_txt)
+
     """
     lamark_solver = LamarkSolver(
         population_size=200,
@@ -621,7 +623,7 @@ if __name__ == "__main__":
         crossover_choose_func="Tournament",
         tournament_winner_probability=0.3,
         tournament_size=5,
-        n_local_optimization=4
+        n_local_optimization=3
     )
     lamark_solver.solve(num_of_generations=200, n_stuck=50)
     print(lamark_solver._best_sol_in_all_executions)
@@ -644,40 +646,3 @@ if __name__ == "__main__":
     print(f"number called to fitness:{darwin_solver._number_of_fitness_executions_in_all_executions}")
     """
 
-    solvers = [
-        NormalSolver(
-            population_size=200,
-            text=txt,
-            english_dictionary=dictionary,
-            crossover_choose_func="Tournament",
-            tournament_winner_probability=0.75,
-            tournament_size=3
-        ),
-        DarwinSolver(
-            population_size=200,
-            text=txt,
-            english_dictionary=dictionary,
-            crossover_choose_func="Tournament",
-            tournament_winner_probability=0.75,
-            tournament_size=3,
-            n_local_optimization=3
-        ),
-        LamarkSolver(
-            population_size=200,
-            text=txt,
-            english_dictionary=dictionary,
-            crossover_choose_func="Tournament",
-            tournament_winner_probability=0.75,
-            tournament_size=3,
-            n_local_optimization=3
-        )
-    ]
-    names = ['normal', 'darwin', 'lamark']
-    colors = ['red', 'magenta', 'blue', 'green', 'black', 'grey']
-    graphs = []
-    for i, (solver, name) in enumerate(zip(solvers, names)):
-        best_score, average_score = solver.solve(num_of_generations=130, n_stuck=100)
-        graphs.append(Graph(best_score, f'best total score {name}', colors[2 * i]))
-        graphs.append(Graph(average_score, f'average score {name}', colors[2 * i + 1]))
-
-    plot_experiment(graphs)
