@@ -40,7 +40,7 @@ class EnglishDictionary:
         return trios
 
     @staticmethod
-    def _read_file_as_dict(file_path) -> dict[str, float]:
+    def _read_file_as_dict(file_path) -> Dict[str, float]:
         data = {}
         with open(file_path, "r") as file:
             reader = csv.reader(file, delimiter="\n")

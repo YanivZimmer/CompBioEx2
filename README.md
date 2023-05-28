@@ -16,7 +16,7 @@ Execution Steps:
 	1. git clone https://github.com/YanivZimmer/CompBioEx2
 	2. cd <PROJECT_DIRECTORY>
 	3. python .\genetic.py
-		(Note that we executed this project with python3.10 & python3.9 - but lower versions might work too)
+		(Note that we executed this project with python3.10 - but lower versions might work too)
 
 
-(*) We tested this program on a Windows PC & Linux Ubuntu with Python 3.10 & python3.9 installed.
+(*) We tested this program on a Windows PC & Linux Ubuntu with Python 3.10 installed.

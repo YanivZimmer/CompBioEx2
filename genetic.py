@@ -618,7 +618,7 @@ if __name__ == "__main__":
     dictionary = EnglishDictionary('dict.txt', 'Letter2_Freq.txt', 'Letter_Freq.txt')
     with open(r"enc.txt", "r") as f:
         txt = f.read()
-    
+
     solver = NormalSolver(
         population_size=200,
         text=txt,
