@@ -618,7 +618,7 @@ if __name__ == "__main__":
     dictionary = EnglishDictionary('dict.txt', 'Letter2_Freq.txt', 'Letter_Freq.txt')
     with open(r"enc.txt", "r") as f:
         txt = f.read()
-    """
+    
     solver = NormalSolver(
         population_size=200,
         text=txt,
@@ -638,7 +638,6 @@ if __name__ == "__main__":
     with open(r"plain.txt", "w+") as f:
         f.write(translated_txt)
     """
-
     lamark_solver = LamarkSolver(
         population_size=200,
         text=txt,
@@ -652,7 +651,7 @@ if __name__ == "__main__":
     print(lamark_solver._best_sol_in_all_executions)
     print(lamark_solver._best_sol_in_all_executions.translate(txt))
     print(f"number called to fitness:{lamark_solver._number_of_fitness_executions_in_all_executions}")
-
+    """
     """
     darwin_solver = DarwinSolver(
         population_size=200,
