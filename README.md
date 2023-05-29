@@ -12,11 +12,17 @@ In this project, we simulate the process of text decryption using genetic algori
 In addition, we tested, compared and evaluated the three most commonly used approaches to GA (Normal, Lamarck and Darwin). 
 
 
-Execution Steps:
-	1. git clone https://github.com/YanivZimmer/CompBioEx2
-	2. cd <PROJECT_DIRECTORY>
-	3. python .\genetic.py
-		(Note that we executed this project with python3.10 - but lower versions might work too)
+Execution Steps (two possibilities):
+	Executeable Execution:
+		1. git clone https://github.com/YanivZimmer/CompBioEx2
+		2. cd <PROJECT_DIRECTORY>
+		3. py2exe_files\genetic\genetic.exe
+
+	Pythonic execution:
+		1. git clone https://github.com/YanivZimmer/CompBioEx2
+		2. cd <PROJECT_DIRECTORY>
+		3. python .\genetic.py
+			(Note that we executed this project with python3.10 - but lower versions might work too)
 
 
 (*) We tested this program on a Windows PC & Linux Ubuntu with Python 3.10 installed.
