@@ -13,11 +13,12 @@ In addition, we tested, compared and evaluated the three most commonly used appr
 
 
 Execution Steps (two possibilities):
+
 	Executeable Execution:
 		1. git clone https://github.com/YanivZimmer/CompBioEx2
 		2. cd <PROJECT_DIRECTORY>
 		3. py2exe_files\genetic\genetic.exe
-
+	*OR*
 	Pythonic execution:
 		1. git clone https://github.com/YanivZimmer/CompBioEx2
 		2. cd <PROJECT_DIRECTORY>
